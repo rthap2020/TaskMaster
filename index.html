@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Task Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+        input[type=checkbox] {
+            accent-color: #3b82f6;
+            width: 1.25rem;
+            height: 1.25rem;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+    <main class="w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col">
+        <header class="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white">
+            <div class="flex justify-between items-center mb-2">
+                <h1 class="text-2xl font-bold tracking-tight">Daily Tasks</h1>
+                <div id="current-date" class="text-sm font-medium opacity-90"></div>
+            </div>
+            <div class="mt-4">
+                <div class="flex justify-between text-sm mb-1 opacity-90">
+                    <span>Progress</span>
+                    <span id="progress-text">0%</span>
+                </div>
+                <div class="w-full bg-white/30 rounded-full h-2 overflow-hidden">
+                    <div id="progress-bar" class="bg-white h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                </div>
+            </div>
+        </header>
+
+        <section class="p-6 flex-1 flex flex-col bg-gray-50">
+            <form id="task-form" class="mb-6 flex gap-2">
+                <input 
+                    type="text" 
+                    id="task-input" 
+                    placeholder="What do you need to do today?" 
+                    class="flex-1 px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow shadow-sm bg-white"
+                    autocomplete="off"
+                >
+                <button 
+                    type="submit" 
+                    class="bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-xl shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex items-center justify-center"
+                    aria-label="Add task"
+                >
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                    </svg>
+                </button>
+            </form>
+
+            <div class="flex-1 overflow-y-auto min-h-[300px] max-h-[50vh] pr-2 custom-scrollbar">
+                <ul id="task-list" class="space-y-3">
+                </ul>
+                
+                <div id="empty-state" class="hidden flex-col items-center justify-center h-full text-center text-gray-400 py-10 mt-8">
+                    <svg class="w-16 h-16 mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+                    </svg>
+                    <p class="text-sm font-medium">No tasks yet.</p>
+                    <p class="text-xs mt-1">Add a task above to start your day!</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        const taskForm = document.getElementById('task-form');
+        const taskInput = document.getElementById('task-input');
+        const taskList = document.getElementById('task-list');
+        const emptyState = document.getElementById('empty-state');
+        const dateDisplay = document.getElementById('current-date');
+        const progressBar = document.getElementById('progress-bar');
+        const progressText = document.getElementById('progress-text');
+
+        const options = { weekday: 'long', month: 'short', day: 'numeric' };
+        dateDisplay.textContent = new Date().toLocaleDateString('en-US', options);
+
+        let tasks = JSON.parse(localStorage.getItem('dailyTasks')) || [];
+
+        function saveTasks() {
+            localStorage.setItem('dailyTasks', JSON.stringify(tasks));
+        }
+
+        function escapeHtml(unsafe) {
+            return unsafe
+                 .replace(/&/g, "&amp;")
+                 .replace(/</g, "&lt;")
+                 .replace(/>/g, "&gt;")
+                 .replace(/"/g, "&quot;")
+                 .replace(/'/g, "&#039;");
+        }
+
+        function updateProgress() {
+            if (tasks.length === 0) {
+                progressBar.style.width = '0%';
+                progressText.textContent = '0%';
+                return;
+            }
+            
+            const completedTasks = tasks.filter(task => task.completed).length;
+            const percentage = Math.round((completedTasks / tasks.length) * 100);
+            
+            progressBar.style.width = `${percentage}%`;
+            progressText.textContent = `${percentage}%`;
+        }
+
+        function renderTasks() {
+            taskList.innerHTML = '';
+            
+            if (tasks.length === 0) {
+                emptyState.classList.remove('hidden');
+                emptyState.classList.add('flex');
+            } else {
+                emptyState.classList.add('hidden');
+                emptyState.classList.remove('flex');
+            }
+
+            tasks.forEach(task => {
+                const li = document.createElement('li');
+                
+                li.className = `group flex items-center justify-between p-4 rounded-xl border bg-white shadow-sm transition-all duration-200 ${
+                    task.completed 
+                        ? 'border-gray-200 opacity-60' 
+                        : 'border-white hover:border-blue-100 hover:shadow-md'
+                }`;
+
+                li.innerHTML = `
+                    <label class="flex items-center gap-4 flex-1 cursor-pointer overflow-hidden">
+                        <input 
+                            type="checkbox" 
+                            ${task.completed ? 'checked' : ''} 
+                            onchange="toggleTask(${task.id})"
+                            class="flex-shrink-0"
+                        >
+                        <span class="truncate transition-all duration-200 ${
+                            task.completed ? 'line-through text-gray-500' : 'text-gray-800 font-medium'
+                        }">
+                            ${escapeHtml(task.text)}
+                        </span>
+                    </label>
+                    
+                    <button 
+                        onclick="deleteTask(${task.id})" 
+                        class="ml-3 text-gray-300 hover:text-red-500 hover:bg-red-50 p-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-red-500 opacity-0 group-hover:opacity-100 focus:opacity-100 flex-shrink-0"
+                        title="Delete task"
+                    >
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                        </svg>
+                    </button>
+                `;
+                
+                taskList.appendChild(li);
+            });
+
+            updateProgress();
+        }
+
+        taskForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const text = taskInput.value.trim();
+            
+            if (!text) return;
+
+            const newTask = {
+                id: Date.now(),
+                text: text,
+                completed: false
+            };
+
+            tasks.unshift(newTask);
+            
+            taskInput.value = '';
+            saveTasks();
+            renderTasks();
+        });
+
+        window.toggleTask = function(id) {
+            const task = tasks.find(t => t.id === id);
+            if (task) {
+                task.completed = !task.completed;
+                saveTasks();
+                renderTasks();
+            }
+        };
+
+        window.deleteTask = function(id) {
+            tasks = tasks.filter(t => t.id !== id);
+            saveTasks();
+            renderTasks();
+        };
+
+        renderTasks();
+    </script>
+</body>
+</html>
